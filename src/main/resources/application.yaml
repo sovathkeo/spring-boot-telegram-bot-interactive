@@ -1,0 +1,63 @@
+server:
+  port: 8090
+
+#spring:
+#  security:
+#    oauth2:
+#      client:
+#        registration:
+#          microsoft:
+#            client-id: 9e611572-4ce5-43bb-81f7-2a75ebebe821
+#            client-secret: Y7r8Q~IoOILB5FXhfLTDZOhg66wkA-6.~tu73dou
+#            scope: openid, profile, email
+#            authorization-grant-type: authorization_code
+#            redirect-uri: "{baseUrl}/login/oauth2/code/microsoft"
+#            client-name: Microsoft
+#        provider:
+#          microsoft:
+#            authorization-uri: https://login.microsoftonline.com/f8cdef31-a31e-4b4a-93e4-5f571e91255a/oauth2/v2.0/authorize
+#            token-uri: https://login.microsoftonline.com/f8cdef31-a31e-4b4a-93e4-5f571e91255a/oauth2/v2.0/token
+#            user-info-uri: https://graph.microsoft.com/oidc/userinfo
+#            jwk-set-uri: https://login.microsoftonline.com/f8cdef31-a31e-4b4a-93e4-5f571e91255a/discovery/v2.0/keys
+
+spring:
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
+  datasource:
+    driver-class-name: com.microsoft.sqlserver.jdbc.SQLServerDriver
+    url: ${DATABASE_URL:jdbc:sqlserver://172.16.101.29;instance=SQLEXPRESS;encrypt=true;trustServerCertificate=true;databaseName=STG}
+    username: ${DATABASE_USERNAME}
+    password: ${DATABASE_PASSWORD}
+    hikari:
+      maximum-pool-size: 50
+      connection-timeout: 3000
+
+telegram:
+  bot:
+    username: "dev_executor_bot"
+    token: "7849159152:AAF6k2xRIoNxryEbgW31rUXqVCFMTH8R0Po"
+    admin-id: 544680034  # Replace with your Telegram ID
+
+application-config:
+  admin-id: 544680034
+  maintenance-mode: 'OFF'
+  maintenance-message: 'Sorry the service is under maintenance! Please try again later.'
+  global-request-timeout-millisecond: 50000
+  global-connect-timeout-millisecond: 10000
+  microservices:
+    ocs-service:
+      base-url: "https://prd-apiserver.camgsm.com.kh/services/surepay"
+      request-timeout-millisecond: 4000
+    sms-service:
+      base-url: "https://prd-apiserver.camgsm.com.kh/sms-transmit/v1/accounts/%s"
+      request-timeout-millisecond: 4000
+    billing-service:
+      base-url: "https://prd-apiserver.camgsm.com.kh/services/proxyBilling"
+      request-timeout-millisecond: 4000
+    provisioning-service:
+      request-timeout-millisecond: 15000
+      base-url: "https://prd-apiserver.camgsm.com.kh/provisioning-gateway/v1"
+
+logging:
+  level:
+    root: info
