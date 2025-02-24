@@ -34,7 +34,7 @@ spring:
 
 telegram:
   bot:
-    username: "dev_executor_bot"
+    username: ${BOT_USERNAME}
     token: ${BOT_TOKEN}
     admin-id: ${ADMIN_ID}  # Replace with your Telegram ID
 
