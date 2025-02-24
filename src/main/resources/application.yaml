@@ -36,10 +36,10 @@ telegram:
   bot:
     username: "dev_executor_bot"
     token: ${BOT_TOKEN}
-    admin-id: 544680034  # Replace with your Telegram ID
+    admin-id: ${ADMIN_ID}  # Replace with your Telegram ID
 
 application-config:
-  admin-id: 544680034
+  admin-id: ${ADMIN_ID}
   maintenance-mode: 'OFF'
   maintenance-message: 'Sorry the service is under maintenance! Please try again later.'
   global-request-timeout-millisecond: 50000
