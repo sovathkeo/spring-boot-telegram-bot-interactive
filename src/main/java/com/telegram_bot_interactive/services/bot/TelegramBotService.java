@@ -23,6 +23,8 @@ import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
+import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 import java.io.ByteArrayInputStream;
 import java.util.*;
@@ -59,38 +61,45 @@ public class TelegramBotService extends TelegramLongPollingBot {
         return this.botToken;
     }
 
+
     @Override
     public void onUpdateReceived(Update update) {
+        Mono.just(new TelegramCallbackDataModel(update))
+            .flatMap(callbackData -> {
 
-        if (update.hasMessage() && update.getMessage().hasText()) {
+                if (callbackData.hasMessage()) {
 
-            Long userId = update.getMessage().getFrom().getId();
+                    if (!this.isAdminUser(callbackData.userId)) {
+                        return sendMessageAsync(callbackData.userId, "⛔ You are not authorized to execute commands.");
+                    }
+                    // any text is ignored, available only menu
+                    return showMainMenuAsync(callbackData.userId);
 
-            if (!this.isAdminUser(userId)) {
-                sendMessage(userId, "⛔ You are not authorized to execute commands.");
-                return;
-            }
+                }
 
-            showMainMenu(userId);
+                if (callbackData.hasCallbackQuery()) {
 
-        } else if (update.hasCallbackQuery()) {
+                    if (callbackData.isConfirm()) {
+                        return handleConfirmationAsync(update);
+                    } else {
+                        return handleMenuSelectionAsync(callbackData);
+                    }
+                }
 
-            var callbackData = new TelegramCallbackDataModel(update);
-
-            if (callbackData.isConfirm()) {
-                handleConfirmation(update);
-            } else {
-                handleMenuSelection(update);
-            }
-
-        }
+                return Mono.empty();
+            })
+            .onErrorResume(error -> {
+                log.error("Error: {}", error.getMessage());
+                return Mono.empty();
+            })
+            .subscribe();
     }
 
     private boolean isAdminUser(Long userId) {
         return Objects.equals(this.adminId, userId);
     }
 
-    private void sendConfirmationRequest(Long chatId, String command) {
+    private Mono<Void> sendConfirmationRequestAsync(TelegramCallbackDataModel callbackData) {
 
         InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
         List<List<InlineKeyboardButton>> keyboard = new ArrayList<>();
@@ -104,64 +113,73 @@ public class TelegramBotService extends TelegramLongPollingBot {
 
         markup.setKeyboard(keyboard);
 
-        sendMessage(chatId, "⚠️ Please Confirm To Proceed The Command!\n\n`" + command + "`", markup);
+        return sendMessageAsync(callbackData.chatId, "⚠️ Please Confirm To Proceed The Command!\n\n`" + callbackData.rawData + "`", markup);
     }
 
-    private void handleConfirmation(Update update) {
+    private Mono<Void> handleConfirmationAsync(Update update) {
+        return Mono.just(new TelegramCallbackDataModel(update))
+            .flatMap(data -> {
 
-        var callbackData = new TelegramCallbackDataModel(update);
-        Long userId = update.getCallbackQuery().getFrom().getId();
-        Long chatId = update.getCallbackQuery().getMessage().getChatId();
+                if (!commands.containsKey(data.userId)) {
+                    return sendMessageAsync(data.chatId, "⛔ No pending command found!");
+                }
 
-        if (!commands.containsKey(userId)) {
-            sendMessage(chatId, "⛔ No pending command found!");
-            return;
-        }
-
-        if (callbackData.isConfirm()) {
-            var command = this.commands.get(userId);
-            command.executeCommand();
-        } else {
-            sendMessage(chatId, "❌ Command execution canceled.");
-        }
+                if (data.isConfirm()) {
+                    var command = this.commands.get(data.userId);
+                    return command.executeCommandAsync();
+                }
+                return sendMessageAsync(data.chatId, "❌ Command execution canceled.");
+            });
     }
 
-    public void sendMessage(Long chatId, String text) {
-        sendMessage(chatId, text, null);
+    public Mono<Void> sendMessageAsync(Long chatId, String text) {
+        return sendMessageAsync(chatId, text, null);
     }
 
-    public void sendImage(Long chatId, byte[] imageBytes) {
+    public Mono<Void> sendImageAsync(Long chatId, byte[] imageBytes) {
+        return Mono.fromCallable( () -> {
 
-        var file = new InputFile(new ByteArrayInputStream(imageBytes), "image.jpg");
+            var file = new InputFile(new ByteArrayInputStream(imageBytes), "image.jpg");
 
-        SendPhoto sendPhoto = new SendPhoto();
-        sendPhoto.setChatId(chatId);
-        sendPhoto.setPhoto(file);
-        try {
-            execute(sendPhoto);
-        } catch (TelegramApiException e) {
-            throw new RuntimeException(e);
-        }
+            SendPhoto sendPhoto = new SendPhoto();
+            sendPhoto.setChatId(chatId);
+            sendPhoto.setPhoto(file);
+            try {
+                execute(sendPhoto);
+            } catch (TelegramApiException e) {
+                return null;
+            }
+            return  null;
+        })
+        .subscribeOn(Schedulers.boundedElastic())
+        .onErrorResume(err -> {
+            log.error(err.getMessage());
+            return Mono.empty();
+        })
+        .then();
     }
 
-    private void sendMessage(Long chatId, String text, InlineKeyboardMarkup markup) {
+    private Mono<Void> sendMessageAsync(Long chatId, String text, InlineKeyboardMarkup markup) {
+        return Mono.fromRunnable(() -> {
+            SendMessage message = new SendMessage();
+            message.setChatId(chatId.toString());
+            message.setText(text);
+            message.setParseMode("Markdown");
+            if (markup != null) {
+                message.setReplyMarkup(markup);
+            }
 
-        SendMessage message = new SendMessage();
-        message.setChatId(chatId.toString());
-        message.setText(text);
-        message.setParseMode("Markdown");
-        if (markup != null) {
-            message.setReplyMarkup(markup);
-        }
-
-        try {
-            execute(message);
-        } catch (TelegramApiException e) {
-            log.error("Error Executing message[%s]".formatted(message),e);
-        }
+            try {
+                execute(message);
+            } catch (TelegramApiException e) {
+                log.error("Error Executing message[{}]", message, e);
+            }
+        })
+            .subscribeOn(Schedulers.boundedElastic())
+            .then();
     }
 
-    private void showMainMenu(Long chatId) {
+    private Mono<Void> showMainMenuAsync(Long chatId) {
 
         InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
         List<List<InlineKeyboardButton>> keyboard = new ArrayList<>();
@@ -171,48 +189,35 @@ public class TelegramBotService extends TelegramLongPollingBot {
         keyboard.add(buildButtonKeyboard(TelegramMenuConstant.ProvisioningHealthCheck));
 
         markup.setKeyboard(keyboard);
-        sendMessage(chatId, "📌 Select an option:", markup);
-
+        return sendMessageAsync(chatId, "📌 Select an option:", markup);
     }
 
-    private void handleMenuSelection(Update update) {
-
-        try {
-
-            String callbackData = update.getCallbackQuery().getData();
-            var callbackModel = new TelegramCallbackDataModel(update);
-
-            Long userId = update.getCallbackQuery().getFrom().getId();
-            Long chatId = update.getCallbackQuery().getMessage().getChatId();
-
-            if (callbackModel.isMenu()) {
-                // show sub-menu
-                this.showSubMenu(update);
-                return;
-            }
-            if (callbackModel.isCommand()) {
-                // Store command in queue
-                this.commands.put(userId, this.buildCommand(update));
+    private Mono<Void> handleMenuSelectionAsync(TelegramCallbackDataModel callbackData) {
+        return Mono.just(new TelegramCallbackDataModel(callbackData.getUpdate()))
+            .flatMap( data -> {
+                if (data.isMenu()) {
+                    return this.showSubMenuAsync(data);
+                }
+                this.commands.put(data.userId, this.buildCommand(callbackData));
                 // Send confirmation
-                this.sendConfirmationRequest(chatId, callbackData);
-            }
-
-        } catch (Exception ignored) {}
+                return this.sendConfirmationRequestAsync(data);
+            })
+            .onErrorResume(err -> {
+                log.error("Error Handle Menu Selection", err);
+                return Mono.empty();
+            });
     }
 
-    private void showSubMenu(Update update) {
+    private Mono<Void> showSubMenuAsync(TelegramCallbackDataModel callbackDataModel) {
 
-        Long userId = update.getCallbackQuery().getFrom().getId();
-        Long chatId = update.getCallbackQuery().getMessage().getChatId();
-        var callbackData = new TelegramCallbackDataModel(update);
-
-        if (callbackData.getMenuEnum() == TelegramBotMainMenu.ExhaustionChart) {
+        if (callbackDataModel.getMenuEnum() == TelegramBotMainMenu.ExhaustionChart) {
 
             // show sub-menu of exhaustion chart generation
             var markup = this.buildExhaustionChartKeyboardMarkup();
-            this.sendMessage(chatId, callbackData.getMenu() + ", Options :", markup);
-
+            return this.sendMessageAsync(callbackDataModel.chatId, callbackDataModel.getMenu() + ", Options :", markup);
         }
+
+        return Mono.empty();
     }
 
     private InlineKeyboardMarkup buildExhaustionChartKeyboardMarkup() {
@@ -250,16 +255,14 @@ public class TelegramBotService extends TelegramLongPollingBot {
         return Collections.singletonList(buildButton(button));
     }
 
-    private BaseTelegramBotCommand buildCommand(Update update) {
+    private BaseTelegramBotCommand buildCommand(TelegramCallbackDataModel callbackData) {
 
-        var callbackData = update.getCallbackQuery().getData();
-        var commands = callbackData.split(";");
-        var menu = TelegramBotMainMenu.valueOf(commands[1]);
+        var menu = callbackData.getMenuEnum();
 
         if (menu == TelegramBotMainMenu.ExhaustionChart) {
-            return new GenerateExhaustionChartCommand(this.chartService, this, update, this.adminId);
+            return new GenerateExhaustionChartCommand(this.chartService, this, callbackData.getUpdate(), this.adminId);
         } else if (menu == TelegramBotMainMenu.ProvisioningHealthCheck) {
-            return new ProvisioningHealthCheckCommand(this, this.provisioningService, update, this.adminId);
+            return new ProvisioningHealthCheckCommand(this, this.provisioningService, callbackData.getUpdate(), this.adminId);
         }
 
         return null;

@@ -4,6 +4,7 @@ import com.telegram_bot_interactive.services.bot.TelegramBotService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.api.objects.Update;
+import reactor.core.publisher.Mono;
 
 import java.util.Objects;
 
@@ -29,25 +30,30 @@ public abstract class BaseTelegramBotCommand {
 
     }
 
-    protected abstract void execute();
+    protected abstract Mono<Void> executeAsync();
 
-    public void executeCommand() {
-        if (!isAdminUser()) {
-            log.error("You are not authorized to execute commands.");
-            return;
-        }
-        this.execute();
+    public Mono<Void> executeCommandAsync() {
+        return isAdminUser()
+            .flatMap(isAdmin -> {
+
+                if (!isAdmin) {
+                    log.error("You are not authorized to execute commands.");
+                    return Mono.empty();
+                }
+
+                return this.executeAsync();
+            });
     }
 
-    protected void sendMessage(String text) {
-        this.botService.sendMessage(this.chatId, text);
+    protected Mono<Void> sendMessageAsync(String text) {
+        return this.botService.sendMessageAsync(this.chatId, text);
     }
 
-    protected void sendPhoto(byte[] imageBytes) {
-        this.botService.sendImage(this.chatId, imageBytes);
+    protected Mono<Void> sendPhotoAsync(byte[] imageBytes) {
+        return this.botService.sendImageAsync(this.chatId, imageBytes);
     }
 
-    protected  boolean isAdminUser() {
-        return Objects.equals(adminId, userId);
+    protected  Mono<Boolean> isAdminUser() {
+        return Mono.just(Objects.equals(adminId, userId));
     }
 }

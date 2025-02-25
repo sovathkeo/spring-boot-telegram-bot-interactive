@@ -7,6 +7,8 @@ import com.telegram_bot_interactive.services.chart.ChartService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.api.objects.Update;
+import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 import java.io.IOException;
 
@@ -38,25 +40,23 @@ public class GenerateExhaustionChartCommand extends BaseTelegramBotCommand {
     }
 
     @Override
-    public void execute() {
-
-        var day = this.getNumberOfDay(command);
-        try {
-
-            this.sendMessage("Collecting Exhaustion Data For Last %s Days. Please Wait.....".formatted(day));
-            var image = this.chartService.generateExhaustionChartForLastNDays(day);
-            this.sendPhoto(image);
-
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+    public Mono<Void> executeAsync() {
+        return this.getNumberOfDay(command)
+            .flatMap(day ->
+                this.sendMessageAsync("Collecting Exhaustion Data For Last %s Days. Please Wait.....".formatted(day))
+                    .then( this.chartService
+                            .generateExhaustionChartForLastNDays(day)
+                            .subscribeOn(Schedulers.boundedElastic())
+                            .flatMap(this::sendPhotoAsync)
+                    )
+            );
     }
 
-    private int getNumberOfDay(ExhaustionCommands command) {
-        return switch (command) {
+    private Mono<Integer> getNumberOfDay(ExhaustionCommands command) {
+        return Mono.just(switch (command) {
             case Today -> 1;
             case Last2Day -> 2;
             case Last3Day -> 3;
-        };
+        });
     }
 }
