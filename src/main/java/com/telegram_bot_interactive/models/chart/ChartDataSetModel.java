@@ -1,4 +1,4 @@
-package com.telegram_bot_interactive.models;
+package com.telegram_bot_interactive.models.chart;
 
 import lombok.AllArgsConstructor;
 

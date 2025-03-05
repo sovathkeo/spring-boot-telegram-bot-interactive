@@ -5,8 +5,8 @@ import com.telegram_bot_interactive.common.enums.TelegramBotMainMenu;
 import com.telegram_bot_interactive.common.enums.TelegramBotReplyCommand;
 import com.telegram_bot_interactive.feature.exhaustionchart.GenerateExhaustionChartCommand;
 import com.telegram_bot_interactive.feature.provisioning.ProvisioningHealthCheckCommand;
-import com.telegram_bot_interactive.models.TelegramCallbackDataModel;
-import com.telegram_bot_interactive.models.TelegramInlineKeyboardButtonModel;
+import com.telegram_bot_interactive.models.telegram.TelegramCallbackDataModel;
+import com.telegram_bot_interactive.models.telegram.TelegramInlineKeyboardButtonModel;
 import com.telegram_bot_interactive.models.base.BaseTelegramBotCommand;
 import com.telegram_bot_interactive.services.chart.ChartService;
 import com.telegram_bot_interactive.services.provisioning.ProvisioningServiceFacade;
@@ -224,6 +224,10 @@ public class TelegramBotService extends TelegramLongPollingBot {
 
         InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
         List<List<InlineKeyboardButton>> keyboard = new ArrayList<>();
+
+        keyboard.add(buildButtonKeyboard(TelegramMenuConstant.ExhaustionChartMenuConstant.TodayElastic));
+        keyboard.add(buildButtonKeyboard(TelegramMenuConstant.ExhaustionChartMenuConstant.Last2DayElastic));
+        keyboard.add(buildButtonKeyboard(TelegramMenuConstant.ExhaustionChartMenuConstant.Last3DayElastic));
 
         keyboard.add(buildButtonKeyboard(TelegramMenuConstant.ExhaustionChartMenuConstant.Today));
         keyboard.add(buildButtonKeyboard(TelegramMenuConstant.ExhaustionChartMenuConstant.Last2Day));

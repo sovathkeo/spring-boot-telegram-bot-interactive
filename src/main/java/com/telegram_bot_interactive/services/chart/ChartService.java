@@ -1,9 +1,15 @@
 package com.telegram_bot_interactive.services.chart;
 
+import com.telegram_bot_interactive.common.constants.DateTimeFormatConstant;
+import com.telegram_bot_interactive.common.constants.OcsDateTimeConstant;
+import com.telegram_bot_interactive.common.enums.ElasticSearch;
+import com.telegram_bot_interactive.common.enums.TimeZones;
+import com.telegram_bot_interactive.common.wrappers.DateTimeWrapper;
 import com.telegram_bot_interactive.common.wrappers.SerializationWrapper;
-import com.telegram_bot_interactive.models.ChartDataSetModel;
-import com.telegram_bot_interactive.models.ExhaustionChartDatasetModel;
+import com.telegram_bot_interactive.models.chart.ChartDataSetModel;
+import com.telegram_bot_interactive.models.exhaustion.ExhaustionChartDatasetModel;
 import com.telegram_bot_interactive.repository.StoreProcedureRepository;
+import com.telegram_bot_interactive.services.ElasticSearchService;
 import lombok.extern.slf4j.Slf4j;
 import org.jfree.chart.ChartFactory;
 import org.jfree.chart.ChartUtils;
@@ -18,7 +24,7 @@ import reactor.core.scheduler.Schedulers;
 
 import java.awt.*;
 import java.io.ByteArrayOutputStream;
-import java.io.IOException;
+import java.util.Arrays;
 import java.util.HashMap;
 
 @Slf4j
@@ -27,6 +33,9 @@ public class ChartService {
 
     @Autowired
     private StoreProcedureRepository repository;
+
+    @Autowired
+    private ElasticSearchService elasticSearchService;
 
     public Mono<byte[]> generateChartFromJson(ChartDataSetModel dataSetModel) {
         return Mono.fromCallable( () -> {
@@ -92,5 +101,27 @@ public class ChartService {
             log.error(err.getMessage());
             return Mono.empty();
         });
+    }
+
+    public Mono<byte[]> generateExhaustionChartForLastNDaysELK(int lastNumberOfDays) {
+        return elasticSearchService.queryAggregateByTimeForEachDays(lastNumberOfDays)
+            .flatMap(result -> {
+
+                var chartDataSet = new ChartDataSetModel();
+                for(var jsonObj : result.aggregations.byTime.buckets) {
+                    var key_as_string = jsonObj.get("key_as_string").getAsString();
+                    var utcDate = DateTimeWrapper.fromString(key_as_string, ElasticSearch.KeyAsStringDateFormat.getValue(), TimeZones.Utc.getKey());
+                    var date = DateTimeWrapper.format(utcDate, DateTimeFormatConstant.YyyyMmDd);
+                    var hour = DateTimeWrapper.format(utcDate, DateTimeFormatConstant.Hh);
+                    var count = jsonObj
+                        .getAsJsonObject("count")
+                        .get("value")
+                        .getAsInt();
+
+                    chartDataSet.data.add(new ChartDataSetModel.DataModel(count, date, hour));
+                }
+
+                return this.generateChartFromJson(chartDataSet);
+            });
     }
 }

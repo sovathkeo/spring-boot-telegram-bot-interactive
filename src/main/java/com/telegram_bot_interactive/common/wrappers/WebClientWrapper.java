@@ -2,6 +2,9 @@
 package com.telegram_bot_interactive.common.wrappers;
 
 import com.telegram_bot_interactive.configuration.ApplicationConfiguration;
+import io.netty.handler.ssl.SslContext;
+import io.netty.handler.ssl.SslContextBuilder;
+import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 import jakarta.annotation.PostConstruct;
 import lombok.Getter;
 import lombok.Setter;
@@ -15,6 +18,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 import reactor.netty.http.client.HttpClient;
 
+import javax.net.ssl.SSLException;
 import java.time.Duration;
 
 @Getter
@@ -30,9 +34,25 @@ public class WebClientWrapper {
     private int REQUEST_TIME_OUT;
 
     @PostConstruct
-    public void init() {
+    public void init() throws SSLException {
+
+        SslContext sslContext;
+        try {
+            sslContext = SslContextBuilder
+                .forClient()
+                .trustManager(InsecureTrustManagerFactory.INSTANCE) // Trust all certs
+                .build();
+        } catch (SSLException e) {
+            sslContext = SslContextBuilder
+                .forClient()
+                .build();
+        }
+
+        SslContext finalSslContext = sslContext;
         var httpClient = HttpClient.create()
+            .secure(ssl -> ssl.sslContext(finalSslContext))
             .responseTimeout(Duration.ofMillis(appSetting.getGlobalRequestTimeoutMillisecond()));
+
         webClientBuilder =  WebClient
             .builder()
             .clientConnector(new ReactorClientHttpConnector(httpClient));
@@ -56,7 +76,6 @@ public class WebClientWrapper {
             .toEntity(Object.class)
             .timeout(Duration.ofMillis(this.getRequestTimeout()))
             .onErrorResume(err -> {
-                //(err, "url[%s]; text[%s]".formatted(url, err.getMessage()));
                 return Mono.error(err);
             })
             .block();

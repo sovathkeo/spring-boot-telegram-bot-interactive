@@ -2,7 +2,7 @@ package com.telegram_bot_interactive.common.constants;
 
 import com.telegram_bot_interactive.common.enums.ExhaustionCommands;
 import com.telegram_bot_interactive.common.enums.TelegramBotMainMenu;
-import com.telegram_bot_interactive.models.TelegramInlineKeyboardButtonModel;
+import com.telegram_bot_interactive.models.telegram.TelegramInlineKeyboardButtonModel;
 
 public abstract class TelegramMenuConstant {
 
@@ -23,9 +23,25 @@ public abstract class TelegramMenuConstant {
 
     public static class ExhaustionChartMenuConstant {
 
+        // Data source from ELK
+        public static TelegramInlineKeyboardButtonModel TodayElastic = new TelegramInlineKeyboardButtonModel(
+            "Today-ELK", "Command;%s;%s".formatted(TelegramBotMainMenu.ExhaustionChart, ExhaustionCommands.TodayElk)
+        );
+
+        public static TelegramInlineKeyboardButtonModel Last2DayElastic = new TelegramInlineKeyboardButtonModel(
+            "Last 2 Day - ELK", "Command;%s;%s".formatted(TelegramBotMainMenu.ExhaustionChart, ExhaustionCommands.Last2DayElk)
+        );
+
+        public static TelegramInlineKeyboardButtonModel Last3DayElastic = new TelegramInlineKeyboardButtonModel(
+            "Last 3 Day - ELK", "Command;%s;%s".formatted(TelegramBotMainMenu.ExhaustionChart, ExhaustionCommands.Last3DayElk)
+        );
+
+        // data source from DB
+
         public static TelegramInlineKeyboardButtonModel Today = new TelegramInlineKeyboardButtonModel(
             "Today", "Command;%s;%s".formatted(TelegramBotMainMenu.ExhaustionChart, ExhaustionCommands.Today)
         );
+
         public static TelegramInlineKeyboardButtonModel Last2Day = new TelegramInlineKeyboardButtonModel(
             "Last 2 Day", "Command;%s;%s".formatted(TelegramBotMainMenu.ExhaustionChart, ExhaustionCommands.Last2Day)
         );

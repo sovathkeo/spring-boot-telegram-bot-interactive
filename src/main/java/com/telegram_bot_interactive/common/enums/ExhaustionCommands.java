@@ -5,6 +5,10 @@ import lombok.Getter;
 @Getter
 public enum ExhaustionCommands {
 
+    TodayElk("TODAY-ELASTIC"),
+    Last2DayElk("LAST_2_DAY-ELASTIC"),
+    Last3DayElk("LAST_3_DAY-ELASTIC"),
+
     Today("TODAY"),
     Last2Day("LAST_2_DAY"),
     Last3Day("LAST_3_DAY");

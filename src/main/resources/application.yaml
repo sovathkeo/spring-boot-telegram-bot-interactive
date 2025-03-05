@@ -44,6 +44,12 @@ application-config:
   maintenance-message: 'Sorry the service is under maintenance! Please try again later.'
   global-request-timeout-millisecond: 50000
   global-connect-timeout-millisecond: 10000
+  elasticsearch:
+    base-url: "https://elasticsearch.cellcard.com.kh:9200/{INDEX}/_search"
+    username: ${ELASTICSEARCH_USERNAME}
+    password: ${ELASTICSEARCH_PASSWORD}
+    indexes:
+      business-namespace: "business-prod-*"
   microservices:
     ocs-service:
       base-url: "https://prd-apiserver.camgsm.com.kh/services/surepay"

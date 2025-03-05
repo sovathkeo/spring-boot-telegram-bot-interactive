@@ -44,19 +44,27 @@ public class GenerateExhaustionChartCommand extends BaseTelegramBotCommand {
         return this.getNumberOfDay(command)
             .flatMap(day ->
                 this.sendMessageAsync("Collecting Exhaustion Data For Last %s Days. Please Wait.....".formatted(day))
-                    .then( this.chartService
-                            .generateExhaustionChartForLastNDays(day)
-                            .subscribeOn(Schedulers.boundedElastic())
-                            .flatMap(this::sendPhotoAsync)
+                    .then(
+                        isElkCommand(command)
+                            ? chartService.generateExhaustionChartForLastNDaysELK(day)
+                            : chartService.generateExhaustionChartForLastNDays(day)
                     )
+                    .flatMap(this::sendPhotoAsync)
+
             );
     }
 
     private Mono<Integer> getNumberOfDay(ExhaustionCommands command) {
         return Mono.just(switch (command) {
-            case Today -> 1;
-            case Last2Day -> 2;
-            case Last3Day -> 3;
+            case Today, TodayElk -> 1;
+            case Last2Day, Last2DayElk -> 2;
+            case Last3Day, Last3DayElk -> 3;
         });
+    }
+
+    private boolean isElkCommand(ExhaustionCommands command) {
+        return (command == ExhaustionCommands.TodayElk ||
+            command == ExhaustionCommands.Last2DayElk ||
+            command == ExhaustionCommands.Last3DayElk);
     }
 }

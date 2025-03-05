@@ -1,4 +1,4 @@
-package com.telegram_bot_interactive.models;
+package com.telegram_bot_interactive.models.telegram;
 
 import com.telegram_bot_interactive.common.enums.TelegramBotMainMenu;
 import com.telegram_bot_interactive.common.enums.TelegramBotReplyCommand;

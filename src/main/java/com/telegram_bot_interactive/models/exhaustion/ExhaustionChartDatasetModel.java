@@ -1,7 +1,8 @@
-package com.telegram_bot_interactive.models;
+package com.telegram_bot_interactive.models.exhaustion;
 
 import com.telegram_bot_interactive.common.wrappers.SerializationWrapper;
 import com.google.gson.annotations.SerializedName;
+import com.telegram_bot_interactive.models.chart.HourTotalModel;
 import lombok.NoArgsConstructor;
 
 @NoArgsConstructor

@@ -31,6 +31,8 @@ public class ApplicationConfiguration {
 
     public MicroservicesConfig microservices = new MicroservicesConfig();
 
+    public ElasticsearchConfig elasticsearch = new ElasticsearchConfig();
+
     public Long adminId;
 
     public String getMaintenanceMessage() {
